@@ -4,14 +4,6 @@ import XCTest
 final class AsyncCommandTests: XCTestCase {
     
     func testValidCommand() async throws {
-let pycount = Command(name: "PyCount",
-                      command: "/usr/local/bin/python3",
-                      arguments: [
-                        "-c",
-                        "for i in range(1,11):print(i)"
-                      ],
-                      errorPhrases: ["3"],
-                      verbose: false)
         let pythonCounter = Command(name: "PyCount", command: "/usr/local/bin/python3", arguments: [
             "-c",
             "for i in range(1,11):print(i)"
