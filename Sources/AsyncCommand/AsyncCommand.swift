@@ -26,8 +26,8 @@ public actor Command {
     let process: Process
     let stdOut = Pipe()
     let stdErr = Pipe()
-    private var outputLog: String?
-    private var errorLog: String?
+    private var outputLog: String = ""
+    private var errorLog: String = ""
 
 
     let errorPhrases: [String]
@@ -36,14 +36,14 @@ public actor Command {
     public var log: String {
         var fullLog = ""
         var separator = ""
-        if let outputLog = outputLog {
+        if outputLog != "" {
             fullLog.append(outputLog)
             separator = "\n"
         }
-        if let errorLog = errorLog {
+        if errorLog != "" {
             fullLog.append("\(separator)\(errorLog)")
         }
-        return fullLog
+        return fullLog.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
 
@@ -105,46 +105,36 @@ public actor Command {
         }
 
 
+        // Caputure stdout
+        stdOut.fileHandleForReading.readabilityHandler = { pipe in
+            if let line = String(data: pipe.availableData, encoding: .utf8), line != "" {
+                self.outputLog += line
+                if self.verbose {
+                    print("[\(self.name.uppercased())][STDOUT] \(line)")
+                }
+            }
+        }
+
+        // Capture stderr
+        stdErr.fileHandleForReading.readabilityHandler = { pipe in
+            if let line = String(data: pipe.availableData, encoding: .utf8), line != "" {
+                self.errorLog += line
+                if self.verbose {
+                    print("[\(self.name.uppercased())][STDERR] \(line)")
+                }
+            }
+        }
+
+
         // Lock the thread until the termination handler gets called (above)
         _ = semaphore.wait(wallTimeout: .distantFuture)
+        try stdOut.fileHandleForReading.close()
+        try stdErr.fileHandleForReading.close()
         status = .finished
 
 
-        // Read and handle the stdout pipe
-        let stdoutData = self.stdOut.fileHandleForReading.readDataToEndOfFile()
-        self.stdOut.fileHandleForReading.closeFile()
-
-        if let output = String(data: stdoutData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
-           output != "" {
-            outputLog = output
-            if verbose {
-                print("[\(name.uppercased())][STDOUT]\n\(output)\n[\(name.uppercased())][/STDOUT]")
-            }
-
-            if checkPhrases(log: output, phrases: errorPhrases) {
-                status = .error
-            }
-        }
-
-        // Read and handle the stderr pipe
-        let stderrData = self.stdErr.fileHandleForReading.readDataToEndOfFile()
-        self.stdErr.fileHandleForReading.closeFile()
-
-        if let err = String(data: stderrData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
-           err != "" {
-            errorLog = err
-            if verbose {
-                print("[\(name.uppercased())][STDERR]\n\(err)\n[\(name.uppercased())][/STDERR]")
-            }
-
-            if checkPhrases(log: err, phrases: errorPhrases) {
-                status = .error
-            }
-        }
-
-
-        // Final error check
-        if process.terminationStatus != 0 {
+        // Final error checks
+        if process.terminationStatus != 0 || checkPhrases(log: log, phrases: errorPhrases) {
             status = .error
         }
     }
