@@ -53,12 +53,14 @@ public actor Command {
         - name: A human readable name for the command
         - command: The absolute path to the target executable
         - arguments: An array of arguments to pass to the target command
+        - workingDirectory: A URL indicating which directory to run from 
         - errorPhrases: A list of phrases to search for in the output log. Any matches cause the final command status to be set to `.error`
         - verbose: Toggles printing the execution status
      */
     public init(name: String,
                 command: String,
                 arguments: [String]?,
+                workingDirectory: URL? = nil,
                 errorPhrases: [String] = [],
                 verbose: Bool = false) {
         self.name = name
@@ -68,6 +70,10 @@ public actor Command {
         process = Process()
         process.executableURL = URL(fileURLWithPath: command)
         process.arguments = arguments
+
+        if let dir = workingDirectory, dir.isFileURL {
+            process.currentDirectoryURL = workingDirectory
+        }
 
         process.standardOutput = stdOut
         process.standardError = stdErr
