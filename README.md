@@ -6,18 +6,20 @@ A structured concurrency wrapper for running external processes.
 ## Usage
 
 ```swift 
-let pycount = Command(name: "PyCount",
-                      command: "/usr/local/bin/python3",
-                      arguments: [
-                        "-c",
-                        "for i in range(1,11):print(i)"
-                      ],
-                      errorPhrases: [
-                        "3"
-                      ],
-                      verbose: false)
-                      
-try await pycount.run()
+let homeURL = FileManager.default.homeDirectoryForCurrentUser
+let path = homeURL.path + "/Desktop"
+
+let ffmpeg = Command(name: "ffmpeg",
+                     command: "/usr/local/bin/ffmpeg",
+                     arguments: [
+                        "-y",
+                        "-i", "\(path)/big_buck_bunny_720.mov",
+                        "-c:v", "hevc_videotoolbox",
+                        "\(path)/big_buck_bunny_h265.mp4"
+                     ],
+                    verbose: true)
+                    
+try await ffmpeg.run()
 ```
 
 
